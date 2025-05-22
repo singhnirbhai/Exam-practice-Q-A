@@ -1,119 +1,128 @@
 #!/bin/bash
 
-# Total questions
-TOTAL=36
 score=0
+total=36
 
-# Questions and answers array
-questions=(
-"Copy the file /etc/passwd to /tmp/passwd.bak."
-"Move the file /tmp/passwd.bak to the directory /root/backups/."
-"Use chage to set the password of user john to expire in 5 days."
-"Change the ownership of the file /root/report.txt to user alice and group devops."
-"Set read, write, and execute permissions for the owner, and no permissions for group and others on /root/secret.txt."
-"Grant full permissions to a file /root/superfile.sh only for the root user."
-"Apply an ACL to file /root/project.txt so that user david has read and write access."
-"Modify the default umask value to 027 and create a new file to reflect the change."
-"Create a new user named devadmin."
-"Create a new group named ops_team."
-"Create a user deploy with primary group ops_team."
-"Create a user analyst with secondary group ops_team but a different primary group."
-"Create a hard link to /root/data.txt named /root/data_hardlink.txt."
-"Create a symbolic (soft) link to /root/data.txt named /root/data_softlink.txt."
-"Display the first 15 lines of the file /etc/passwd."
-"Display the last 7 lines of the file /etc/group."
-"Create a file named devops_notes.txt inside /home/student/ and copy it to /var/tmp/."
-"Move the file /var/tmp/devops_notes.txt to /opt/reports/."
-"Set the file /opt/reports/devops_notes.txt so that only the group owner can read and write it."
-"Set ownership of the directory /opt/reports to user manager and group qa_team."
-"Add execute permission only for others on the file /usr/local/bin/startup.sh."
-"Assign ACL permission to user sam to have execute-only access on /usr/local/bin/startup.sh."
-"Change the umask value temporarily to 0022 and create a new directory secure_folder in /tmp."
-"Create a group auditlog and a user loguser with that group as the primary group."
-"Create a user support and add them to both auditlog and qa_team as secondary groups."
-"Create a soft link to /var/log/syslog named /tmp/syslog_link and a hard link named /tmp/syslog_hard."
-"Create a user named trainer with no home directory."
-"Create a user named intern with /home/intern_data as the custom home directory."
-"Modify the shell of user intern to /bin/bash."
-"Lock the user account testuser."
-"Unlock the user account testuser."
-"Delete the user oldstaff and remove their home directory along with the account."
-"Create a group named docker_users and assign user deploy to this group."
-"Change the primary group of user developer to engineering."
-"Add the user auditor to the groups compliance and security as secondary groups."
-"List all the groups that user alice belongs to."
-)
+# Check 1: File copied
+[ -f /tmp/passwd.bak ] && ((score++))
 
-answers=(
-"cp /etc/passwd /tmp/passwd.bak"
-"mv /tmp/passwd.bak /root/backups/"
-"chage -M 5 john"
-"chown alice:devops /root/report.txt"
-"chmod 700 /root/secret.txt"
-"chmod 700 /root/superfile.sh"
-"setfacl -m u:david:rw /root/project.txt"
-"umask 027"
-"useradd devadmin"
-"groupadd ops_team"
-"useradd -g ops_team deploy"
-"useradd -G ops_team analyst"
-"ln /root/data.txt /root/data_hardlink.txt"
-"ln -s /root/data.txt /root/data_softlink.txt"
-"head -n 15 /etc/passwd"
-"tail -n 7 /etc/group"
-"touch /home/student/devops_notes.txt && cp /home/student/devops_notes.txt /var/tmp/"
-"mv /var/tmp/devops_notes.txt /opt/reports/"
-"chmod 660 /opt/reports/devops_notes.txt"
-"chown manager:qa_team /opt/reports"
-"chmod o+x /usr/local/bin/startup.sh"
-"setfacl -m u:sam:x /usr/local/bin/startup.sh"
-"umask 0022 && mkdir /tmp/secure_folder"
-"groupadd auditlog && useradd -g auditlog loguser"
-"useradd -G auditlog,qa_team support"
-"ln -s /var/log/syslog /tmp/syslog_link && ln /var/log/syslog /tmp/syslog_hard"
-"useradd -M trainer"
-"useradd -d /home/intern_data intern"
-"usermod -s /bin/bash intern"
-"passwd -l testuser"
-"passwd -u testuser"
-"userdel -r oldstaff"
-"groupadd docker_users && usermod -a -G docker_users deploy"
-"usermod -g engineering developer"
-"usermod -a -G compliance,security auditor"
-"groups alice"
-)
+# Check 2: File moved
+[ -f /root/backups/passwd.bak ] && ((score++))
 
-echo "Linux Practical Exam: Answer the following questions with appropriate command(s):"
-echo "-------------------------------------------------------------------------------"
+# Check 3: chage value
+[[ "$(chage -l john | grep 'Maximum')" == *"5"* ]] && ((score++))
 
-for ((i=0; i<TOTAL; i++)); do
-  echo ""
-  echo "Q$((i+1)): ${questions[$i]}"
-  read -p "Your answer: " user_answer
-  # Normalize input (trim, lowercase)
-  trimmed_answer=$(echo "$user_answer" | xargs)
-  correct_answer=${answers[$i]}
+# Check 4: Ownership
+[[ "$(stat -c %U:%G /root/report.txt 2>/dev/null)" == "alice:devops" ]] && ((score++))
 
-  # Simple string equality check
-  if [ "$trimmed_answer" == "$correct_answer" ]; then
-    echo "Correct."
-    ((score++))
-  else
-    echo "Wrong. Expected: $correct_answer"
-  fi
-done
+# Check 5: Permissions 700
+[[ "$(stat -c %a /root/secret.txt 2>/dev/null)" == "700" ]] && ((score++))
 
-percentage=$(( score * 100 / TOTAL ))
+# Check 6: root-only perms
+[[ "$(stat -c %U /root/superfile.sh 2>/dev/null)" == "root" && "$(stat -c %a /root/superfile.sh 2>/dev/null)" == "700" ]] && ((score++))
+
+# Check 7: ACL for david
+getfacl /root/project.txt 2>/dev/null | grep -q "user:david:rw" && ((score++))
+
+# Check 8: Umask change check
+umask_val=$(umask)
+[[ "$umask_val" == "0027" || "$umask_val" == "027" ]] && ((score++))
+
+# Check 9: user exists
+id devadmin &>/dev/null && ((score++))
+
+# Check 10: group exists
+getent group ops_team &>/dev/null && ((score++))
+
+# Check 11: deploy user, primary group
+[[ "$(id -gn deploy 2>/dev/null)" == "ops_team" ]] && ((score++))
+
+# Check 12: analyst secondary group
+id analyst 2>/dev/null | grep -q "ops_team" && ((score++))
+
+# Check 13: Hard link
+[[ "$(stat -c %i /root/data.txt 2>/dev/null)" == "$(stat -c %i /root/data_hardlink.txt 2>/dev/null)" ]] && ((score++))
+
+# Check 14: Soft link
+[ -L /root/data_softlink.txt ] && ((score++))
+
+# Check 15: Head (not verifiable — skipped)
+((score++)) # Give mark by default
+
+# Check 16: Tail (not verifiable — skipped)
+((score++)) # Give mark by default
+
+# Check 17: File exists after copy
+[ -f /var/tmp/devops_notes.txt ] && ((score++))
+
+# Check 18: File moved
+[ -f /opt/reports/devops_notes.txt ] && ((score++))
+
+# Check 19: Group write-only perms
+[[ "$(stat -c %a /opt/reports/devops_notes.txt 2>/dev/null)" == "660" ]] && ((score++))
+
+# Check 20: Owner & group
+[[ "$(stat -c %U:%G /opt/reports 2>/dev/null)" == "manager:qa_team" ]] && ((score++))
+
+# Check 21: Others exec
+[[ "$(stat -c %a /usr/local/bin/startup.sh 2>/dev/null)" =~ .*[1|5|7]$ ]] && ((score++))
+
+# Check 22: ACL for sam execute-only
+getfacl /usr/local/bin/startup.sh 2>/dev/null | grep -q "user:sam:--x" && ((score++))
+
+# Check 23: Directory with correct umask
+[ -d /tmp/secure_folder ] && ((score++))
+
+# Check 24: Group + user
+getent group auditlog &>/dev/null && id loguser &>/dev/null && ((score++))
+
+# Check 25: support in multiple groups
+id support 2>/dev/null | grep -q "auditlog" && id support | grep -q "qa_team" && ((score++))
+
+# Check 26: Links to syslog
+[ -L /tmp/syslog_link ] && [ -f /tmp/syslog_hard ] && ((score++))
+
+# Check 27: trainer with no home
+getent passwd trainer | cut -d: -f6 | grep -q "^/home" || ((score++))
+
+# Check 28: intern with custom home
+getent passwd intern | cut -d: -f6 | grep -q "/home/intern_data" && ((score++))
+
+# Check 29: intern has bash shell
+getent passwd intern | cut -d: -f7 | grep -q "/bin/bash" && ((score++))
+
+# Check 30: testuser locked
+passwd -S testuser 2>/dev/null | grep -q "L" && ((score++))
+
+# Check 31: testuser unlocked
+passwd -S testuser 2>/dev/null | grep -q "P" && ((score++))
+
+# Check 32: user deleted
+! id oldstaff &>/dev/null && ((score++))
+
+# Check 33: deploy in docker_users
+id deploy | grep -q "docker_users" && ((score++))
+
+# Check 34: primary group of developer
+id -gn developer 2>/dev/null | grep -q "engineering" && ((score++))
+
+# Check 35: auditor in both
+id auditor | grep -q "compliance" && id auditor | grep -q "security" && ((score++))
+
+# Check 36: groups for alice
+id alice &>/dev/null && ((score++))
+
+# Show results
+percent=$((score * 100 / total))
 echo ""
-echo "============================="
-echo "Exam Completed."
-echo "Score: $score out of $TOTAL"
-echo "Percentage: $percentage %"
+echo "===================================="
+echo "Automated Linux Exam Evaluation"
+echo "Total Score: $score / $total"
+echo "Percentage: $percent %"
 
-if [ $percentage -ge 60 ]; then
-  echo "Result: PASS"
+if [ "$percent" -ge 60 ]; then
+    echo "Result: PASS"
 else
-  echo "Result: FAIL"
+    echo "Result: FAIL"
 fi
-echo "============================="
-
+echo "===================================="
